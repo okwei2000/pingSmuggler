@@ -8,6 +8,7 @@ try:
     from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives import padding
     from scapy.all import sniff, ICMP, wrpcap
+    from scapy.all import get_if_list, get_if_addr
 except ImportError:
     print("Error: Required modules not found.")
     if input("Do you want to install the required modules? (Y/n)").lower() != "n":
@@ -66,7 +67,6 @@ def process_packet(packet, key, output_cap, output_txt):
                     f.write(decrypted_data)
                 wrpcap(output_cap, packet, append=True)
 
-
 def main():
 
     if len(sys.argv) != 4:
@@ -81,11 +81,25 @@ def main():
         print("Error: Invalid key size. Key must be 16, 24, or 32 bytes long for AES.")
         exit(1)
 
-    print("Starting packet capture...")
-    sniff(
-        filter="icmp",
-        prn=lambda x: process_packet(x, key.encode("utf-8"), output_cap, output_txt),
-    )
+
+    interfaces = get_if_list()
+    # Display interface names and their corresponding IPs
+    for iface in interfaces:
+        try:
+            print(f"Interface: {iface}, IP Address: {get_if_addr(iface)}")
+        except Exception as e:
+            print(f"Could not get IP for interface {iface}: {e}")
+
+    try:
+        iface="\\Device\\NPF_{BFD263BE-500B-4B17-B245-024FD5E1D507}"
+        print(f"Starting packet capture on iface: {iface}")
+        sniff(
+            iface=iface,
+            filter="icmp",
+            prn=lambda x: process_packet(x, key.encode("utf-8"), output_cap, output_txt),
+        )
+    except KeyboardInterrupt:
+        print("Sniffing terminated by user.")
     print(f"Number of packets received: {packet_count}")
 
 
